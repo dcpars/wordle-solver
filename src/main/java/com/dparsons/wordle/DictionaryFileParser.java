@@ -20,7 +20,6 @@ public class DictionaryFileParser
 
         try
         {
-            System.out.println("[DictionaryFileParser] Loading dictionary...");
             return Files.lines(filePath)
                     .filter(word -> word.matches(VALID_WORD_REGEX))
                     .map(String::toLowerCase)

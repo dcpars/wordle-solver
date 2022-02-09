@@ -3,29 +3,17 @@ package com.dparsons.wordle;
 import com.google.common.collect.ImmutableList;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class WordleSolver
 {
-    /**
-     * Used to suggest next guesses. Copied from:
-     * https://www3.nd.edu/~busiforc/handouts/cryptography/letterfrequencies.html
-     */
-    @SuppressWarnings("unused")
-    private static final List<String> VOWELS_BY_FREQUENCY =
-            ImmutableList.of("e", "a", "i", "o", "u", "y");
-    @SuppressWarnings("unused")
-    private static final List<String> CONSONANTS_BY_FREQUENCY =
-            Arrays.asList("r", "t", "n", "s", "l", "c", "d", "p", "m", "h",
-                          "g", "b", "f", "w", "k", "v", "x", "z", "j", "q");
-    private static final List<String> ALL_LETTERS_BY_FREQUENCY =
-            Arrays.asList("e", "a", "r", "i", "o", "t", "n", "s", "l",
-                          "c", "u", "d", "p", "m", "h", "g", "b", "f",
-                          "y", "w", "k", "v", "x", "z", "j", "q");
-
     private List<String> dictionary;
     private final List<WordGuess> guesses = new ArrayList<>();
     private final Scanner scanner = new Scanner(System.in);
+
+    private final LetterCombinationsFilter letterCombinationFilter;
+    private static final int DEFAULT_AGGRESSIVENESS = 2;
 
     public static void main(String[] args)
     {
@@ -36,9 +24,16 @@ public class WordleSolver
 
     public WordleSolver(final String filename)
     {
+        System.out.println("Loading dictionary...");
         this.dictionary = DictionaryFileParser.parseDictionary(filename);
-        System.out.println("Dictionary loaded. Starting game...\n");
-        System.out.println("\nIf a suggested guess is invalid, enter 'skip' when scoring.");
+        System.out.println("Dictionary loaded.");
+
+        System.out.println("Analyzing dictionary...");
+        this.letterCombinationFilter = new LetterCombinationsFilter(DEFAULT_AGGRESSIVENESS);
+        this.letterCombinationFilter.calibrate(dictionary);
+        System.out.println("Dictionary analysis complete.");
+
+        System.out.println("\nStarting game...\nIf a suggested guess is invalid, enter 'skip' when scoring.\n");
     }
 
     public void run()
@@ -193,7 +188,7 @@ public class WordleSolver
                 .collect(Collectors.toSet());
         // This is clunky to force preservation of list order
         final ImmutableList.Builder<String> nextLettersOrdered = ImmutableList.builder();
-        for (String letter : ALL_LETTERS_BY_FREQUENCY)
+        for (String letter : WordleConstants.ALL_LETTERS_BY_FREQUENCY)
         {
             if (!badLetters.contains(letter))
             {
@@ -263,6 +258,12 @@ public class WordleSolver
      */
     private String _chooseNextGuess(final List<String> eligibleWords)
     {
+        // Use the letter combination filter to attempt to aggressively
+        // find a letter combination to pick. This might need to be
+        // moved up a level or two.
+        letterCombinationFilter.calibrate(eligibleWords);
+        //final Predicate<String> combinationPredicate = letterCombinationFilter.generatePredicate()
+
         if (eligibleWords.size() > 0)
         {
             return eligibleWords.stream()
