@@ -46,7 +46,7 @@ class WordleDb:
                 return self.db_client.insert(query)
             except:
                 print("Error storing word counts. Attempted query: {}".format(query))
-        return None
+        return []
 
     def __build_upsert_query(self, word_counts):
         formatted_word_counts = []
