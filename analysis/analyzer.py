@@ -1,50 +1,32 @@
-from lxml import html
-import re
-import requests
-
-# analyzer.py
-# Randomly scrape Wikipedia articles and analyzer words for popularity
-
-RANDOM_ARTICLE_URL = 'https://en.wikipedia.org/wiki/Special:Random'
-REQUEST_INTERVAL_SEC = 10
-WORD_REGEX = r"\b([a-zA-Z]{5})\b"
+from wikipedia_scraper import WikipediaScraper
+from wordle_db import WordleDb
+import time
 
 
-def fetch_html(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        # The Random Article page returns a redirect to a random page
-        # TODO: Check if redirect URL matches an article we've already seen
-        redirect_url = response.url
+class Analyzer:
 
-        print(redirect_url)
-        return response.text
-    else:
-        print("Request to {} failed with status: {}".format(url, response.status_code))
+    def __init__(self):
+        self.scraper = WikipediaScraper()
+        self.wordle_db = WordleDb()
+
+    def analyze_article(self):
+        url, word_counts = self.scraper.scrape_article_words()
+        updated_word_counts = self.__store_url_and_word_count(url, word_counts)
+        return url, updated_word_counts
+
+    # Store the URL and word counts in the database. For the MVP, if
+    # the URL has already been scraped, don't update anything. Consider
+    # keeping this behavior in the long term.
+    def __store_url_and_word_count(self, url, word_counts):
+        if self.wordle_db.url_hasnt_been_scraped(url):
+            self.wordle_db.store_url(url, len(word_counts))
+            return self.wordle_db.store_word_counts(word_counts)
         return None
 
 
-# Given a paragraph of text, parse an array of valid five-letter words.
-def parse_words_from_paragraph(paragraph):
-    valid_words = []
-    word_matches = re.findall(WORD_REGEX, paragraph)
-    if word_matches and len(word_matches) > 0:
-        formatted_words = list(map(lambda w: w.lower(), word_matches))
-        valid_words.extend(formatted_words)
-    return valid_words
-
-
-# Given raw HTML, parse into a list of valid five-letter words.
-def parse_content_for_words(page):
-    dom = html.fromstring(page)
-    paragraphs = dom.xpath('//div[@class="mw-parser-output"]/p/text()')
-    valid_words = []
-    for paragraph in paragraphs:
-        paragraph_words = parse_words_from_paragraph(paragraph)
-        valid_words.extend(paragraph_words)
-    return valid_words
-
-
-raw_html = fetch_html(RANDOM_ARTICLE_URL)
-words = parse_content_for_words(raw_html)
-print(words)
+REQUEST_INTERVAL_SEC = 5
+analyzer = Analyzer()
+while True:
+    u, wc = analyzer.analyze_article()
+    print("{}: {} words found.".format(u, len(wc)))
+    time.sleep(REQUEST_INTERVAL_SEC)
