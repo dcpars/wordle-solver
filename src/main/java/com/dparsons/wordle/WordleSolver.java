@@ -3,17 +3,13 @@ package com.dparsons.wordle;
 import com.google.common.collect.ImmutableList;
 
 import java.util.*;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class WordleSolver
 {
-    private List<String> dictionary;
+    private final Dictionary dictionary;
     private final List<WordGuess> guesses = new ArrayList<>();
     private final Scanner scanner = new Scanner(System.in);
-
-    private final LetterCombinationsFilter letterCombinationFilter;
-    private static final int DEFAULT_AGGRESSIVENESS = 2;
 
     public static void main(String[] args)
     {
@@ -22,17 +18,9 @@ public class WordleSolver
         solver.run();
     }
 
-    public WordleSolver(final String filename)
+    public WordleSolver(final String dictionaryFilename)
     {
-        System.out.println("Loading dictionary...");
-        this.dictionary = DictionaryFileParser.parseDictionary(filename);
-        System.out.println("Dictionary loaded.");
-
-        System.out.println("Analyzing dictionary...");
-        this.letterCombinationFilter = new LetterCombinationsFilter(DEFAULT_AGGRESSIVENESS);
-        this.letterCombinationFilter.calibrate(dictionary);
-        System.out.println("Dictionary analysis complete.");
-
+        this.dictionary = new Dictionary(dictionaryFilename);
         System.out.println("\nStarting game...\nIf a suggested guess is invalid, enter 'skip' when scoring.\n");
     }
 
@@ -43,7 +31,7 @@ public class WordleSolver
         while (!guess.isCorrect())
         {
             guesses.add(guess);
-            _filterDictionary();
+            filterDictionary();
             _recommendNextGuess();
             guess = _fetchNextGuess();
         }
@@ -110,16 +98,6 @@ public class WordleSolver
                 (!"invalid".equalsIgnoreCase(scores) && (scores == null || scores.length() != 5));
     }
 
-    private void _filterDictionary()
-    {
-        System.out.println("\nFiltering dictionary...");
-        final int previousSize = dictionary.size();
-        dictionary = DictionaryFilter.filter(dictionary, guesses);
-        final int wordsRemoved = previousSize - dictionary.size();
-        System.out.println("Dictionary reduced by " + wordsRemoved + " words.");
-        System.out.println("New dictionary size: " + dictionary.size() + " words.\n");
-    }
-
     /**
      * Attempt to recommend the "best" next guess. This will be quite rudimentary to start.
      * We can assume the dictionary has been narrowed to filter out all words that do
@@ -138,8 +116,7 @@ public class WordleSolver
 
         if (lettersInWord.size() == 5)
         {
-            final Optional<String> nextWord = dictionary.stream().findFirst();
-            nextBestGuess = nextWord.orElse(null);
+            nextBestGuess = this.dictionary.getNextWord();
         }
         else
         {
@@ -156,8 +133,6 @@ public class WordleSolver
      */
     private String _selectNextGuess(final List<String> lettersInWord)
     {
-        final List<String> requiredLetterPositions = _getRequiredLettersAndPositions();
-
         final List<String> eligibleLetters = _getEligibleLetters();
 
         for (String letter : eligibleLetters)
@@ -166,10 +141,12 @@ public class WordleSolver
                     .addAll(lettersInWord)
                     .add(letter)
                     .build();
-            final List<String> matchingWords = _findMatchingWords(lettersInNextGuess, requiredLetterPositions);
-            if (matchingWords.size() > 0)
+            final DictionaryFilter filter = new DictionaryFilter(guesses)
+                    .withNextGuess(lettersInNextGuess);
+            final DictionaryMatches matches = this.dictionary.findMatches(filter);
+            if (matches.matchesFound())
             {
-                return _chooseNextGuess(matchingWords);
+                return _chooseNextGuess(matches);
             }
         }
 
@@ -199,81 +176,34 @@ public class WordleSolver
     }
 
     /**
-     * Find a list of words from the dictionary that contain the letters provided.
-     */
-    private List<String> _findMatchingWords(List<String> letters, final List<String> lettersInPosition)
-    {
-        return dictionary.stream()
-                .filter(word -> letters.stream().allMatch(word::contains))
-                .filter(word -> _lettersInAppropriatePositions(word, lettersInPosition))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Given a word and a list of letters required to be in a certain position, return
-     * true if the letters in the word meet those requirements.
-     */
-    private static boolean _lettersInAppropriatePositions(final String word, final List<String> lettersInPosition)
-    {
-        for (int position = 0; position < 5; position++)
-        {
-            final String letterInPosition = lettersInPosition.get(position);
-            if (letterInPosition != null)
-            {
-                final String letterInWord = word.substring(position, position + 1);
-                if (!letterInWord.equals(letterInPosition))
-                {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * From each of the previous guesses, derive the letters that must be in a certain position.
-     */
-    private List<String> _getRequiredLettersAndPositions()
-    {
-        final List<String> requiredLetters = _emptyList();
-        guesses.forEach(guess -> {
-            final List<String> lettersInPosition = guess.getLettersInCorrectPosition();
-            for (int position = 0; position < 5; position++)
-            {
-                final String letter = lettersInPosition.get(position);
-                if (letter != null)
-                {
-                    requiredLetters.add(position, letter);
-                }
-            }
-        });
-        return requiredLetters;
-    }
-
-    /**
      * Given a list of matching words from the dictionary, choose one to suggest
      * as a next guess. Easy solution is to avoid words that have two of the same
      * letter.
      */
-    private String _chooseNextGuess(final List<String> eligibleWords)
+    private String _chooseNextGuess(final DictionaryMatches matches)
     {
-        // Use the letter combination filter to attempt to aggressively
-        // find a letter combination to pick. This might need to be
-        // moved up a level or two.
-        letterCombinationFilter.calibrate(eligibleWords);
-        //final Predicate<String> combinationPredicate = letterCombinationFilter.generatePredicate()
+        // TODO: Prefer Wikipedia matches.
 
-        if (eligibleWords.size() > 0)
+        final List<String> plaintextMatches = matches.getPlaintextMatches();
+        if (plaintextMatches.size() > 0)
         {
-            return eligibleWords.stream()
+            return plaintextMatches.stream()
                     .filter(Objects::nonNull)
                     .filter(WordleSolver::_hasUniqueLetters)
                     .findAny()
-                    .orElse(eligibleWords.get(0));
+                    .orElse(plaintextMatches.get(0));
         }
 
         return null;
+    }
+
+    /**
+     * Filter the dictionary using the guesses that have been made so far.
+     */
+    private void filterDictionary()
+    {
+        final DictionaryFilter filter = new DictionaryFilter(this.guesses);
+        dictionary.filter(filter);
     }
 
     private static boolean _hasUniqueLetters(final String word)
