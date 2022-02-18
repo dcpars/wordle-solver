@@ -1,19 +1,48 @@
 package com.dparsons.wordle;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 /**
- * Utility responsible for filtering a dictionary. Consumes all word guesses
- * and removes all words that do not meet the criteria.
+ * Model containing the predicates used to narrow the dictionary. Ingests
+ * a history of guesses and uses them to construct a single, potentially-
+ * large predicate.
  */
 public class DictionaryFilter
 {
-    public static List<String> filter(final List<String> dictionary, final List<WordGuess> guesses)
+    private final Predicate<String> predicates;
+
+    public DictionaryFilter(final List<WordGuess> guesses)
     {
-        final Predicate<String> predicates = _buildAllPredicates(guesses);
-        return _filterDictionary(dictionary, predicates);
+        this.predicates = _buildAllPredicates(guesses);
+    }
+
+    public DictionaryFilter(final Predicate<String> predicates)
+    {
+        this.predicates = predicates;
+    }
+
+    /**
+     * The normal construction of a DictionaryFilter only takes
+     * into account previous guesses. However, we'll also want to
+     * proactively filter the dictionary when searching for a
+     * recommendation for the next guess. This method consumes
+     * a list of letters required in the next guess, and tacks
+     * on a condition to the predicate. Does not mutate the
+     * current predicate, only returns a new DictionaryFilter instance.
+     */
+    public DictionaryFilter withNextGuess(final List<String> lettersInNextGuess)
+    {
+        final Predicate<String> wordContainsRequiredLetters = word ->
+                lettersInNextGuess.stream().allMatch(word::contains);
+        final Predicate<String> newPredicate = this.predicates.and(wordContainsRequiredLetters);
+        return new DictionaryFilter(newPredicate);
+    }
+
+    public Predicate<String> getPredicates()
+    {
+        return this.predicates;
     }
 
     /**
@@ -122,18 +151,23 @@ public class DictionaryFilter
             }
         }
 
-        return predicates;
-    }
-
-    private static List<String> _filterDictionary(final List<String> dictionary, final Predicate<String> predicate)
-    {
-        if (predicate != null)
+        // Next, add a predicate to ensure letters that are completely
+        // incorrect are filtered out when finding matching words.
+        final Set<String> completelyIncorrectLetters = guess.getCompletelyIncorrectLetters();
+        for (String incorrectLetter : completelyIncorrectLetters)
         {
-            return dictionary.stream()
-                    .filter(predicate)
-                    .collect(Collectors.toList());
+            final Predicate<String> predicate = dictionaryWord ->
+                    !dictionaryWord.contains(incorrectLetter);
+            if (predicates != null)
+            {
+                predicates = predicates.and(predicate);
+            }
+            else
+            {
+                predicates = predicate;
+            }
         }
 
-        return dictionary;
+        return predicates;
     }
 }

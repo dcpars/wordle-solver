@@ -1,5 +1,5 @@
 from db_client import DbClient
-
+import psycopg2
 
 class WordleDb:
     SELECT_WORD_COUNTS = """
@@ -39,8 +39,14 @@ class WordleDb:
     # increment the count accordingly. Returns an array of dictionaries
     # containing the updated word counts for the words provided.
     def store_word_counts(self, word_counts):
-        query = self.__build_upsert_query(word_counts)
-        return self.db_client.insert(query)
+        if word_counts is not None and len(word_counts) > 0:
+            query = ""
+            try:
+                query = self.__build_upsert_query(word_counts)
+                return self.db_client.insert(query)
+            except:
+                print("Error storing word counts. Attempted query: {}".format(query))
+        return None
 
     def __build_upsert_query(self, word_counts):
         formatted_word_counts = []
