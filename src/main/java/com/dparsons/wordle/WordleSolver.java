@@ -20,7 +20,7 @@ public class WordleSolver
 
     public WordleSolver(final String dictionaryFilename)
     {
-        this.dictionary = new Dictionary(dictionaryFilename);
+        this.dictionary = new Dictionary(dictionaryFilename, "localhost", 5432);
         System.out.println("\nStarting game...\nIf a suggested guess is invalid, enter 'skip' when scoring.\n");
     }
 
@@ -82,6 +82,7 @@ public class WordleSolver
             final String letter = guess.substring(position, end);
 
             final String scoreRaw = invalidSuggestion ? "-1" : scores.substring(position, end);
+            // TODO: Store invalid word.
 
             // TODO: Gracefully handle exception here if parsing fails.
             final int score = Integer.parseInt(scoreRaw);
@@ -182,19 +183,41 @@ public class WordleSolver
      */
     private String _chooseNextGuess(final DictionaryMatches matches)
     {
-        // TODO: Prefer Wikipedia matches.
-
-        final List<String> plaintextMatches = matches.getPlaintextMatches();
-        if (plaintextMatches.size() > 0)
+        String match = null;
+        final List<String> wikipediaMatches = matches.getWikipediaMatches();
+        if (wikipediaMatches.size() > 0)
         {
-            return plaintextMatches.stream()
-                    .filter(Objects::nonNull)
-                    .filter(WordleSolver::_hasUniqueLetters)
-                    .findAny()
-                    .orElse(plaintextMatches.get(0));
+            match = _chooseNextMatchFromDictionary(wikipediaMatches);
         }
 
-        return null;
+        if (match == null)
+        {
+            final List<String> plaintextMatches = matches.getPlaintextMatches();
+            if (plaintextMatches.size() > 0)
+            {
+                match = _chooseNextMatchFromDictionary(plaintextMatches);
+            }
+        }
+
+        return match;
+    }
+
+    /**
+     * Choose the next match from the dictionary, preferring a word with
+     * unique letters if possible.
+     */
+    private String _chooseNextMatchFromDictionary(final List<String> matches)
+    {
+        if (matches == null || matches.size() == 0)
+        {
+            return null;
+        }
+
+        return matches.stream()
+                .filter(Objects::nonNull)
+                .filter(WordleSolver::_hasUniqueLetters)
+                .findAny()
+                .orElse(matches.get(0));
     }
 
     /**
@@ -216,16 +239,5 @@ public class WordleSolver
         }
 
         return letters.size() == word.length();
-    }
-
-    // Might be a hack
-    private static List<String> _emptyList()
-    {
-        final List<String> items = new ArrayList<>(5);
-        for(int i = 0; i < 5; i++)
-        {
-            items.add(null);
-        }
-        return items;
     }
 }
