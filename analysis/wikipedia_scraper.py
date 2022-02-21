@@ -7,6 +7,10 @@ class WikipediaScraper:
     RANDOM_ARTICLE_URL = "https://en.wikipedia.org/wiki/Special:Random"
     WORD_REGEX = r"\b([a-zA-Z]{5})\b"
 
+    # TODO: Filter out proper nouns. If a word is capitalized
+    # TODO: in the middle of a sentence, filter out.
+    PROPER_NONE_REGEX = None
+
     # Find a random article from Wikipedia and scrape it for five-letter words.
     # Return a Tuple containing the URL of the article and the word counts.
     def scrape_article_words(self):

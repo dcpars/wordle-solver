@@ -1,6 +1,8 @@
 package com.dparsons.wordle;
 
 import java.sql.*;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.function.Function;
 
@@ -53,6 +55,32 @@ public class DbClient
             final ResultSet resultSet = statement.executeQuery())
         {
             return processResultSet.apply(resultSet);
+        }
+    }
+
+    public <T> void insertSingleQuery(final Connection connection,
+                                      final String query,
+                                      final String parameter) throws SQLException
+    {
+        PreparedStatement statement = null;
+        ResultSet resultSet = null;
+
+        try
+        {
+            statement = connection.prepareStatement(query);
+            statement.setString(1, parameter);
+            resultSet = statement.executeQuery();
+        }
+        finally
+        {
+            if (statement != null)
+            {
+                statement.close();
+            }
+            if (resultSet != null)
+            {
+                resultSet.close();
+            }
         }
     }
 

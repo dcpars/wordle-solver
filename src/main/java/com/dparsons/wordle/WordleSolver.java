@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 public class WordleSolver
 {
+    private final WordleDb db;
     private final Dictionary dictionary;
     private final List<WordGuess> guesses = new ArrayList<>();
     private final Scanner scanner = new Scanner(System.in);
@@ -20,8 +21,9 @@ public class WordleSolver
 
     public WordleSolver(final String dictionaryFilename)
     {
-        this.dictionary = new Dictionary(dictionaryFilename, "localhost", 5432);
-        System.out.println("\nStarting game...\nIf a suggested guess is invalid, enter 'skip' when scoring.\n");
+        this.db = new WordleDb("localhost", 5432);
+        this.dictionary = new Dictionary(dictionaryFilename, this.db);
+        System.out.println("\nStarting game...\nIf a suggested guess is invalid, enter 'invalid' when scoring.\n");
     }
 
     public void run()
@@ -31,7 +33,8 @@ public class WordleSolver
         while (!guess.isCorrect())
         {
             guesses.add(guess);
-            filterDictionary();
+            _handleInvalidGuessWord(guess);
+            _filterDictionary();
             _recommendNextGuess();
             guess = _fetchNextGuess();
         }
@@ -82,7 +85,6 @@ public class WordleSolver
             final String letter = guess.substring(position, end);
 
             final String scoreRaw = invalidSuggestion ? "-1" : scores.substring(position, end);
-            // TODO: Store invalid word.
 
             // TODO: Gracefully handle exception here if parsing fails.
             final int score = Integer.parseInt(scoreRaw);
@@ -223,7 +225,7 @@ public class WordleSolver
     /**
      * Filter the dictionary using the guesses that have been made so far.
      */
-    private void filterDictionary()
+    private void _filterDictionary()
     {
         final DictionaryFilter filter = new DictionaryFilter(this.guesses);
         dictionary.filter(filter);
@@ -239,5 +241,17 @@ public class WordleSolver
         }
 
         return letters.size() == word.length();
+    }
+
+    /**
+     * If an invalid word - according to Wordle - is guessed, store
+     * in the database so that we don't suggest it in the future.
+     */
+    private void _handleInvalidGuessWord(final WordGuess guess)
+    {
+        if (guess.isInvalid())
+        {
+            this.db.storeInvalidWord(guess.toString());
+        }
     }
 }

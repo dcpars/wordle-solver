@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
  */
 public class Dictionary
 {
-    private static Comparator<Map.Entry<String, Integer>> WORD_COUNTS_DESC =
+    private static final Comparator<Map.Entry<String, Integer>> WORD_COUNTS_DESC =
             (Map.Entry<String, Integer> wc1, Map.Entry<String, Integer> wc2) ->
                     wc2.getValue().compareTo(wc1.getValue());
 
@@ -25,11 +25,15 @@ public class Dictionary
     private Map<String, Integer> wikipediaDictionary;
     private List<String> wikipediaDictionarySorted;
 
+    // Holds invalid words that have been ruled out in the past.
+    private final Set<String> invalidWords;
+
     private final WordleDb db;
 
-    public Dictionary(final String dictionaryFilename, final String dbHost, final Integer dbPort)
+    public Dictionary(final String dictionaryFilename, final WordleDb db)
     {
-        this.db = new WordleDb(dbHost, dbPort);
+        this.db = db;
+        this.invalidWords = db.getInvalidWords();
         this.dictionary = _loadPlainDictionary(dictionaryFilename);
         this.wikipediaDictionary = _loadWikipediaDictionary();
         this.wikipediaDictionarySorted = _sortWikipediaWords();
@@ -84,9 +88,7 @@ public class Dictionary
     {
         System.out.println("Loading plaintext dictionary...");
         List<String> dictionary = DictionaryFileParser.parseDictionary(filename);
-
-        // TODO: Filter out invalid words from DB.
-
+        dictionary = _filterInvalidWords(dictionary);
         System.out.println("Plaintext dictionary loaded. Size: " + dictionary.size() + " words.");
         return dictionary;
     }
@@ -98,6 +100,7 @@ public class Dictionary
     {
         System.out.println("Loading Wikipedia dictionary...");
         Map<String, Integer> dictionary = this.db.getWikipediaDictionary();
+        dictionary = _filterInvalidWordsMap(dictionary);
         System.out.println("Wikipedia dictionary loaded. Size: " + dictionary.size() + " words.");
         return dictionary;
     }
@@ -154,5 +157,25 @@ public class Dictionary
         final int wordsRemoved = previousSize - this.wikipediaDictionary.size();
         System.out.println("Wikipedia dictionary reduced by " + wordsRemoved + " words.");
         System.out.println("New Wikipedia dictionary size: " + this.wikipediaDictionary.size() + " words.\n");
+    }
+
+    /**
+     * Filter out all invalid words from the dictionary.
+     * TODO: Fix code redundancy.
+     */
+    private List<String> _filterInvalidWords(final List<String> dictionary)
+    {
+        return dictionary.stream()
+                .filter(word -> !this.invalidWords.contains(word))
+                .collect(Collectors.toList());
+    }
+
+    private Map<String, Integer> _filterInvalidWordsMap(final Map<String, Integer> dictionary)
+    {
+        return dictionary.entrySet().stream()
+                .filter(entry -> !this.invalidWords.contains(entry.getKey()))
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue));
     }
 }
