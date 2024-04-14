@@ -1,20 +1,19 @@
 package com.dparsons.wordle;
 
 import java.sql.*;
-import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.function.Function;
 
 /**
  * Client used to query the database. This class should contain
- * all the boiler-plate database connection handling.
+ * all the boilerplate database connection handling.
  */
 public class DbClient
 {
     private static final String DRIVER_CLASSNAME = "org.postgresql.Driver";
 
     private final String databaseUrl;
+    private final Properties connectionProperties;
 
     // Required to instantiate the database driver.
     static
@@ -30,9 +29,15 @@ public class DbClient
     }
 
 
-    public DbClient(final String host, final int port)
+    public DbClient(final String host,
+                    final int port,
+                    final String username,
+                    final String password)
     {
         this.databaseUrl = _buildUrl(host, port);
+        this.connectionProperties = new Properties();
+        connectionProperties.put("user", username);
+        connectionProperties.put("password", password);
     }
 
     /**
@@ -40,7 +45,6 @@ public class DbClient
      */
     public Connection getConnection() throws SQLException
     {
-        Properties connectionProperties = new Properties();
         return DriverManager.getConnection(databaseUrl, connectionProperties);
     }
 

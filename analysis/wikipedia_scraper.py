@@ -6,6 +6,7 @@ import requests
 class WikipediaScraper:
     RANDOM_ARTICLE_URL = "https://en.wikipedia.org/wiki/Special:Random"
     WORD_REGEX = r"\b([a-zA-Z]{5})\b"
+    DIV_CONTAINER = '//div[@class="mw-content-ltr mw-parser-output"]'
 
     # TODO: Filter out proper nouns. If a word is capitalized
     # TODO: in the middle of a sentence, filter out.
@@ -43,13 +44,19 @@ class WikipediaScraper:
     # Given raw HTML, parse into a list of valid five-letter words.
     def __parse_content_for_words(self, page):
         dom = html.fromstring(page)
-        paragraphs = dom.xpath('//div[@class="mw-parser-output"]/p/text()')
+        paragraphs = dom.xpath(WikipediaScraper.DIV_CONTAINER + '/p/text()')
         # Wikipedia often embeds hyperlinks in articles, linking to other articles.
         # The text of the hyperlink is valuable to parse as it often contains
         # words eligible for Wordle.
-        hyperlinks = dom.xpath('//div[@class="mw-parser-output"]/p/a/text()')
+        hyperlinks = dom.xpath(WikipediaScraper.DIV_CONTAINER + '/p/a/text()')
+        # Sometimes, in chronological articles, the text is broken up into
+        # list items. Attempt to parse these as well.
+        list_items = dom.xpath(WikipediaScraper.DIV_CONTAINER + '/ul/li/text()')
+        # Do the same for hyperlinks within the list items.
+        list_item_hyperlinks = dom.xpath(WikipediaScraper.DIV_CONTAINER + '/ul/li/a/text()')
+        all_content = paragraphs + hyperlinks + list_items + list_item_hyperlinks
         valid_words = []
-        for text in paragraphs + hyperlinks:
+        for text in all_content:
             words = self.__parse_words_from_paragraph(text)
             valid_words.extend(words)
         return valid_words

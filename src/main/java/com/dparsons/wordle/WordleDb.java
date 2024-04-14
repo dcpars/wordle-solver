@@ -1,6 +1,5 @@
 package com.dparsons.wordle;
 
-import java.io.UncheckedIOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -19,9 +18,12 @@ public class WordleDb
 
     private final DbClient dbClient;
 
-    public WordleDb(final String host, final int port)
+    public WordleDb(final String host,
+                    final int port,
+                    final String username,
+                    final String password)
     {
-        this.dbClient = new DbClient(host, port);
+        this.dbClient = new DbClient(host, port, username, password);
     }
 
     public Map<String, Integer> getWikipediaDictionary()

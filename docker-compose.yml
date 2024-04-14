@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+
+  psql:
+    image: postgres:16.2
+    restart: always
+    container_name: psql
+    environment:
+      POSTGRES_USER: wordle_solver
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - "5432:5432"
+
+  analyzer:
+    build: ./analysis
+    restart: always
+    container_name: analyzer
+    depends_on:
+      - psql
+    environment:
+      DATABASE_URL: postgres://wordle_solver:password@psql:5432/wordle_solver

@@ -17,7 +17,7 @@ class DbClient:
     # Execute the query, returning an array of Dictionary objects
     # keyed by the column name.
     def __execute_query(self, query, autocommit=False):
-        connection = psycopg2.connect(database="", user="", password="", host=self.host, port=self.port)
+        connection = psycopg2.connect(database="", user="wordle_solver", password="password", host=self.host, port=self.port)
         connection.autocommit = autocommit
         cursor = connection.cursor()
         cursor.execute(query)

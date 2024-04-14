@@ -19,10 +19,15 @@ class Analyzer:
     # keeping this behavior in the long term.
     def __store_url_and_word_count(self, url, word_counts):
         if self.wordle_db.url_hasnt_been_scraped(url):
-            self.wordle_db.store_url(url, len(word_counts))
-            if word_counts is not None and len(word_counts) > 0:
+            total_words = self.__total_words_found(word_counts)
+            self.wordle_db.store_url(url, total_words)
+            if word_counts is not None and total_words > 0:
                 return self.wordle_db.store_word_counts(word_counts)
         return {}
+
+    @staticmethod
+    def __total_words_found(word_counts):
+        return sum(word_counts.values())
 
 
 REQUEST_INTERVAL_SEC = 5

@@ -15,27 +15,19 @@
 
 ## Local Dev How to 
 
-#### Run Psql and create database
+#### Run the analyzer, which maintains the dictionary. 
 ```
 # In the root-level directory of the project
-psql -f db/schema.sql
-```
-
-#### Run the Wikipedia scraper
-
-The Wikipedia scraper crawls random articles from Wikipedia and stores.
-The longer this is run, the more informed the database will be.
-```
-# In the 'analysis' directory of the project
-cd analysis
-python3.9 analyzer.py
+docker compose up -d
 ```
 
 #### Run the Wordle solver program
 
 When you have a Wordle puzzle ready to solve, run the Worlde solver application.
-This requires the path to a dictionary text file. 
+This requires the path to a dictionary text file.
+
+The easiest way to run this is in IntelliJ IDEA, by running the `WordleSolver` class.
 ```
 # In the root-level directory of the project
-./gradlew run --args='./examples/dictionary.txt'
+./gradlew run --args='./dictionary.txt'
 ```

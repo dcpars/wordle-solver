@@ -21,7 +21,7 @@ public class WordleSolver
 
     public WordleSolver(final String dictionaryFilename)
     {
-        this.db = new WordleDb("localhost", 5432);
+        this.db = new WordleDb("localhost", 5432, "wordle_solver", "password");
         this.dictionary = new Dictionary(dictionaryFilename, this.db);
         System.out.println("\nStarting game...\nIf a suggested guess is invalid, enter 'invalid' when scoring.\n");
     }

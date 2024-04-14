@@ -28,11 +28,11 @@ class WordleDb:
         RETURNING id, url, word_count;
         """
 
-    # This means each instance of WordleDb - which should ideally be one -
+    # This means each instance of WordleDb - which should ideally    be one -
     # holds an instance of the database client. Consider moving the
     # database client to a static variable.
     def __init__(self):
-        self.db_client = DbClient("localhost", 5432)  # This will need to be configured per environment.
+        self.db_client = DbClient("psql", 5432)  # This will need to be configured per environment.
 
     # Given a dictionary of words and their respective counts, store
     # in the database. If a word already exists in the database,

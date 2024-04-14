@@ -32,3 +32,6 @@ gradle-app.setting
 
 # IntelliJ crap
 .idea
+
+# PostgreSQL crap
+postgres-data
