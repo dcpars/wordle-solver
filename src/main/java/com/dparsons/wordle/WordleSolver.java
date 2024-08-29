@@ -117,6 +117,23 @@ public class WordleSolver
         final List<String> lettersInWord = mostRecentGuess.getLettersInWord();
         final String nextBestGuess;
 
+        /*
+         * TODO: This apparently cannot solve the situation in which a suggestion contains
+         * multiple instances of the same letter. For example, given the following guesses,
+         * it does not suggest "awake" as an option, despite it being the correct answer.
+         *
+         * QUALM - 00200
+         * YEARS - 01200
+         * EXACT - 10200
+         *
+         * At this point, it really should suggest AWAKE, which at the time of writing,
+         * has 38 occurrences in the word count table, far more than the two suggestions
+         * below.
+         *
+         * DIANE - 00202
+         * PHAGE - 00202
+         */
+
         if (lettersInWord.size() == 5)
         {
             nextBestGuess = this.dictionary.getNextWord();
