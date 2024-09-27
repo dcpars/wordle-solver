@@ -39,6 +39,11 @@ public class Dictionary
         this.wikipediaDictionarySorted = _sortWikipediaWords();
     }
 
+    public int getWikipediaWordCount(final String word)
+    {
+        return this.wikipediaDictionary.getOrDefault(word, 0);
+    }
+
     /**
      * Use the provided filter to narrow the entries in the dictionaries.
      */
@@ -57,7 +62,6 @@ public class Dictionary
                 .filter(filter.getPredicates())
                 .collect(Collectors.toList());
         final List<String> wikipediaMatches = this.wikipediaDictionarySorted.stream()
-                .sequential()
                 .filter(filter.getPredicates())
                 .collect(Collectors.toList());
         return new DictionaryMatches(plaintextMatches, wikipediaMatches);
@@ -69,11 +73,11 @@ public class Dictionary
      */
     public String getNextWord()
     {
-        if (this.wikipediaDictionarySorted != null && this.wikipediaDictionarySorted.size() > 0)
+        if (this.wikipediaDictionarySorted != null && !this.wikipediaDictionarySorted.isEmpty())
         {
             return wikipediaDictionarySorted.get(0);
         }
-        else if (this.dictionary != null && this.dictionary.size() > 0)
+        else if (this.dictionary != null && !this.dictionary.isEmpty())
         {
             return this.dictionary.get(0);
         }

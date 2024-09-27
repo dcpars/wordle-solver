@@ -1,12 +1,16 @@
 package com.dparsons.wordle;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class WordleSolver
 {
+    private static final int WIKIPEDIA_MATCH_THRESHOLD = 2;
+
     private final WordleDb db;
     private final Dictionary dictionary;
     private final List<WordGuess> guesses = new ArrayList<>();
@@ -115,7 +119,6 @@ public class WordleSolver
          */
         final WordGuess mostRecentGuess = guesses.get(guesses.size() - 1);
         final List<String> lettersInWord = mostRecentGuess.getLettersInWord();
-        final String nextBestGuess;
 
         /*
          * TODO: This apparently cannot solve the situation in which a suggestion contains
@@ -134,14 +137,8 @@ public class WordleSolver
          * PHAGE - 00202
          */
 
-        if (lettersInWord.size() == 5)
-        {
-            nextBestGuess = this.dictionary.getNextWord();
-        }
-        else
-        {
-            nextBestGuess = _selectNextGuess(lettersInWord);
-        }
+        final String nextBestGuess = lettersInWord.size() == 5 ?
+            this.dictionary.getNextWord() : _selectNextGuess(lettersInWord);
 
         final String recommendation =  nextBestGuess != null ? "Suggestion: " + nextBestGuess + "\n" : "No suggestion\n";
         System.out.println(recommendation);
@@ -166,7 +163,15 @@ public class WordleSolver
             final DictionaryMatches matches = this.dictionary.findMatches(filter);
             if (matches.matchesFound())
             {
-                return _chooseNextGuess(matches);
+                final String nextGuess = _chooseNextGuess(matches);
+                /*
+                 * There's a chance there is technically a match, but it doesn't
+                 * meet the threshold of confidence we're looking for. In that case,
+                 * we should continue to the next letter.
+                 */
+                if (!Strings.isNullOrEmpty(nextGuess)) {
+                    return nextGuess;
+                }
             }
         }
 
@@ -199,12 +204,15 @@ public class WordleSolver
      * Given a list of matching words from the dictionary, choose one to suggest
      * as a next guess. Easy solution is to avoid words that have two of the same
      * letter.
+     * TODO: There is a huge bias here towards encyclopedic words (e.x. "years").
+     * We probably want to filter the wikipedia dictionary to weigh these less, and
+     * instead prefer words with popular letters.
      */
     private String _chooseNextGuess(final DictionaryMatches matches)
     {
         String match = null;
         final List<String> wikipediaMatches = matches.getWikipediaMatches();
-        if (wikipediaMatches.size() > 0)
+        if (!wikipediaMatches.isEmpty())
         {
             match = _chooseNextMatchFromDictionary(wikipediaMatches);
         }
@@ -212,7 +220,7 @@ public class WordleSolver
         if (match == null)
         {
             final List<String> plaintextMatches = matches.getPlaintextMatches();
-            if (plaintextMatches.size() > 0)
+            if (!plaintextMatches.isEmpty())
             {
                 match = _chooseNextMatchFromDictionary(plaintextMatches);
             }
@@ -224,19 +232,29 @@ public class WordleSolver
     /**
      * Choose the next match from the dictionary, preferring a word with
      * unique letters if possible.
+     *
+     * There is a chance a match could be found, but the word is incredibly
+     * rare (since we're scraping publicly-editable Wikipedia pages). To
+     * avoid choosing a ridiculous guess, only recommend a Wikipedia match
+     * if the occurrences surpass a configurable threshold.
      */
     private String _chooseNextMatchFromDictionary(final List<String> matches)
     {
-        if (matches == null || matches.size() == 0)
+        if (matches == null || matches.isEmpty())
         {
             return null;
         }
 
+        final Predicate<String> meetsMatchThreshold = word -> {
+            final int occurrences = this.dictionary.getWikipediaWordCount(word);
+            return occurrences >= WIKIPEDIA_MATCH_THRESHOLD;
+        };
+
         return matches.stream()
                 .filter(Objects::nonNull)
-                .filter(WordleSolver::_hasUniqueLetters)
+                .filter(meetsMatchThreshold)
                 .findAny()
-                .orElse(matches.get(0));
+                .orElse(null);
     }
 
     /**

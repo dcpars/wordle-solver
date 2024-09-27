@@ -34,8 +34,29 @@ public class DictionaryFilter
      */
     public DictionaryFilter withNextGuess(final List<String> lettersInNextGuess)
     {
-        final Predicate<String> wordContainsRequiredLetters = word ->
-                lettersInNextGuess.stream().allMatch(word::contains);
+        /*
+         * The rationale for this logic - instead of just using String::contains - is with
+         * this we can handle multiple occurrences of the same letter, to ensure the word
+         * contains the right amount of letters (e.x. "a", "e", "e").
+         */
+        final Predicate<String> wordContainsRequiredLetters = word -> {
+            // Copy, just to be safe to avoid mutating the parameter (I should confirm we can remove this).
+            String wordCopy = word;
+            for (final String letter : lettersInNextGuess) {
+                final int index = wordCopy.indexOf(letter);
+                if (index != -1) {
+                    wordCopy = wordCopy.substring(0, index) + wordCopy.substring(index + 1);
+                }
+                else {
+                    return false;
+                }
+            }
+
+            // We've removed all the letters we were looking for, so we know the word
+            // contains the letters we need.
+            return true;
+        };
+
         final Predicate<String> newPredicate = this.predicates.and(wordContainsRequiredLetters);
         return new DictionaryFilter(newPredicate);
     }
